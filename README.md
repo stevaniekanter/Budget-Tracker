@@ -25,3 +25,4 @@ npm start
 
 # Screenshot
 
+![budget-tracker](assets/budget.png)
