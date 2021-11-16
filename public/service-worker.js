@@ -1,7 +1,6 @@
 const FILES_TO_CACHE = [
     "/",
     "/index.html",
-    "/index.js",
     "/styles.css",
     "/manifest.webmanifest",
     "/icons/icon-192x192.png",
@@ -22,7 +21,7 @@ const FILES_TO_CACHE = [
   
 // activate
   self.addEventListener("activate", function (evt) {
-    const currentCashes = [CACHE_NAME, CACHE_DATA];
+    const currentCaches = [CACHE_NAME, CACHE_DATA];
     evt.waitUntil(
       caches.keys().then((keyList) => {
         return Promise.all(
@@ -49,7 +48,6 @@ const FILES_TO_CACHE = [
                 if (response.status === 200) {
                   cache.put(evt.request.url, response.clone());
                 }
-  
                 return response;
               })
               .catch((err) => {

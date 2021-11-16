@@ -1,64 +1,48 @@
-// Reference from Week 18 activity 
-
-let db;
-
-// create a new db request for a "budget" database.
-const request = indexedDB.open("BudgetDB", 1);
-
-request.onsuccess = function(event) {
-  db = event.target.result;
-
-  if (navigator.onLine) {
-    checkDatabase();
+export function checkForIndexedDb() {
+  if (!window.indexedDB) {
+    console.log("Your browser doesn't support a stable version of IndexedDB.");
+    return false;
   }
-};
-
-request.onerror = function(event) {
-  console.log("Woops! " + event.target.errorCode);
-};
-
-request.onupgradeneeded = function(event) {
-  const db = event.target.result;
-  db.createObjectStore("Budget Pending", 
-  { autoIncrement: true });
-};
-
-
-function saveRecord(record) {
-  const transaction = db.transaction(["Pending"], "Readwrite");
-
-  const store = transaction.objectStore("Pending");
-
-  store.add(record);
+  return true;
 }
 
-function checkDatabase() {
-  const transaction = db.transaction(["Pending"], "Readwrite");
+export function useIndexedDb(databaseName, storeName, method, object) {
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(databaseName, 1);
+    let db,
+      tx,
+      store;
 
-  const store = transaction.objectStore("Pending");
+    request.onupgradeneeded = function(e) {
+      const db = request.result;
+      db.createObjectStore(storeName, { keyPath: "_id" });
+    };
 
-  const getAll = store.getAll();
+    request.onerror = function(e) {
+      console.log("There was an error");
+    };
 
-  getAll.onsuccess = function() {
-    if (getAll.result.length > 0) {
-      fetch("/api/transaction", {
-        method: "POST",
-        body: JSON.stringify(getAll.result),
-        headers: {
-          Accept: "application/json, text/plain, */*",
-          "Content-Type": "application/json"
-        }
-      })
-      .then(response => response.json())
-      .then(() => {
-        const transaction = db.transaction(["Pending"], "Readwrite");
+    request.onsuccess = function(e) {
+      db = request.result;
+      tx = db.transaction(storeName, "readwrite");
+      store = tx.objectStore(storeName);
 
-        const store = transaction.objectStore("Pending");
-
-        store.clear();
-      });
-    }
-  };
+      db.onerror = function(e) {
+        console.log("error");
+      };
+      if (method === "put") {
+        store.put(object);
+      } else if (method === "get") {
+        const all = store.getAll();
+        all.onsuccess = function() {
+          resolve(all.result);
+        };
+      } else if (method === "delete") {
+        store.delete(object._id);
+      }
+      tx.oncomplete = function() {
+        db.close();
+      };
+    };
+  });
 }
-
-window.addEventListener("App online", checkDatabase);
