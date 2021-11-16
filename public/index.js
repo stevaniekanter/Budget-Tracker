@@ -1,10 +1,5 @@
-import { checkIndexedDB } from ".db.js";
-import { useIndexDB } from ".db.js";
-
 let transactions = [];
 let myChart;
-
-checkIndexedDB ();
 
 fetch("/api/transaction")
   .then(response => {
@@ -141,7 +136,7 @@ function sendTransaction(isAdding) {
   })
   .catch(err => {
     // fetch failed, so save in indexed db
-    useIndexDB("modelName", "modelStore", "put", {transaction});
+    saveRecord(transaction);
 
     // clear form
     nameEl.value = "";
