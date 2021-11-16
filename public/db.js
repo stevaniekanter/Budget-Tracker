@@ -1,48 +1,61 @@
-export function checkForIndexedDb() {
-  if (!window.indexedDB) {
-    console.log("Your browser doesn't support a stable version of IndexedDB.");
-    return false;
-  }
-  return true;
-}
+// Reference from Week 19 activity 
 
-export function useIndexedDb(databaseName, storeName, method, object) {
-  return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open(databaseName, 1);
-    let db,
-      tx,
-      store;
+let db;
+// create new connection
+const request = indexedDB.open("budget", 1);
 
-    request.onupgradeneeded = function(e) {
-      const db = request.result;
-      db.createObjectStore(storeName, { keyPath: "_id" });
-    };
-
-    request.onerror = function(e) {
-      console.log("There was an error");
-    };
-
-    request.onsuccess = function(e) {
-      db = request.result;
-      tx = db.transaction(storeName, "readwrite");
-      store = tx.objectStore(storeName);
-
-      db.onerror = function(e) {
-        console.log("error");
-      };
-      if (method === "put") {
-        store.put(object);
-      } else if (method === "get") {
-        const all = store.getAll();
-        all.onsuccess = function() {
-          resolve(all.result);
-        };
-      } else if (method === "delete") {
-        store.delete(object._id);
-      }
-      tx.oncomplete = function() {
-        db.close();
-      };
-    };
+request.onupgradeneeded = function (event) {
+  const db = event.target.result;
+  let objectStore = db.createObjectStore("Pending", {
+    keyPath: "id",
+    autoIncrement: true,
   });
+};
+
+request.onsuccess = function (event) {
+  db = event.target.result;
+  if (navigator.onLine) {
+    checkDatabase();
+  }
+};
+
+request.onerror = function (event) {
+  console.log("Sorry", event.target.errorCode);
+};
+
+// used in index.js if the POST request for the API fails
+function saveRecord(record) {
+  const transaction = db.transaction(["Pending"], "readwrite");
+  const pendingStore = transaction.objectStore("Pending");
+  // add a record to indexDB
+  pendingStore.add(record);
 }
+
+// checking for internet connection
+function checkDatabase() {
+  const transaction = db.transaction(["Pending"], "readwrite");
+  const pendingStore = transaction.objectStore("Pending");
+
+  const records = pendingStore.getAll();
+
+  records.onsuccess = function () {
+    if (records.result.length > 0) {
+      fetch("/api/transaction/bulk", {
+        method: "POST",
+        body: JSON.stringify(records.result),
+        headers: {
+          Accept: "application/json, text/plain, */*",
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => response.json())
+        .then(() => {
+          const transaction = db.transaction(["pending"], "readwrite");
+          const pendingStore = transaction.objectStore("pending");
+          pendingStore.clear();
+        });
+    }
+  };
+}
+// listen if app coming back online
+window.addEventListener("online", checkDatabase);
